@@ -1,6 +1,10 @@
 local File = {}
 
-File.data_path = vim.fn.stdpath("cache") .. "/lookie/"
+if type(_LookieConfig.data_path) == "function" then
+    File.data_path = _LookieConfig.data_path()
+else
+    File.data_path = _LookieConfig.data_path
+end
 
 File.empty = function(file_name)
 
@@ -37,7 +41,8 @@ File.write = function(marks, file_name)
             local csv_line = data.line_no .. "," ..
                 data.type .. "," ..
                 data.text .. "," ..
-                data.pos
+                data.pos .. "," ..
+                data._file_name
             table.insert(file_data, csv_line)
 
             vim.fn.writefile(file_data, full_path, "s")
