@@ -15,6 +15,8 @@ function M.setup(set_opts)
     vim.keymap.set("n", "<leader>M", function()
 
         local buf = vim.api.nvim_create_buf(false, true)
+        -- vim.api.nvim_buf_set_name(buf, 'lookie')
+        vim.api.nvim_set_option_value('filetype', 'lookie', { buf = buf })
         local data = {}
         local lines = {}
         local current_file_name = vim.api.nvim_buf_get_name(buf)
@@ -24,7 +26,6 @@ function M.setup(set_opts)
                 data[v.file_name] = {}
             end
             table.insert(data[v.file_name], v)
-            print(vim.inspect(v))
         end
 
         local meta_data = {}
@@ -37,7 +38,7 @@ function M.setup(set_opts)
             for _, v in ipairs(vs) do
                 meta_data[line_count] = { line = v.line_no, file = v._file_name }
                 table.insert(lines, v.line_no .. ": " .. v.text)
-            line_count = line_count + 1
+                line_count = line_count + 1
             end
             meta_data[line_count] = {}
             table.insert(lines, "")
@@ -48,6 +49,23 @@ function M.setup(set_opts)
         local height = 20
 
         vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+        line_count = 0
+        for _, vs in pairs(data) do
+            line_count = line_count + 1
+            for _, v in ipairs(vs) do
+                local line_no_text = v.line_no .. ": "
+                vim.api.nvim_buf_add_highlight(
+                    buf,
+                    -1,
+                    _LookieConfig.types[v.type].hl,
+                    line_count,
+                    line_no_text:len(),
+                    v.text:len() + line_no_text:len()
+                )
+                line_count = line_count + 1
+            end
+            line_count = line_count + 1
+        end
 
         local opts = {
             relative = 'win',
@@ -72,7 +90,10 @@ function M.setup(set_opts)
                 if line_data.file and line_data.file ~= current_file_name then
                     vim.api.nvim_command('edit ' .. vim.fn.fnameescape(line_data.file))
                 end
-                vim.api.nvim_win_set_cursor(0, { line_data.line, 0 })
+
+                if line_data.line then
+                    vim.api.nvim_win_set_cursor(0, { line_data.line, 0 })
+                end
             end
         end, { buffer = buf, noremap = true })
 
