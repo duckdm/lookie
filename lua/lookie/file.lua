@@ -2,6 +2,8 @@ local File = {}
 
 if type(_LookieConfig.data_path) == "function" then
     File.data_path = _LookieConfig.data_path()
+elseif _LookieConfig.data_path == "cwd" then
+    File.data_path = vim.fn.getcwd() .. "/.lookie/"
 else
     File.data_path = _LookieConfig.data_path
 end
