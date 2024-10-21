@@ -12,146 +12,59 @@ function M.setup(set_opts)
         vim.cmd("highlight " .. v.hl .. " guifg=" .. v.fg .. " guibg=" .. v.bg)
     end
 
-    vim.keymap.set("n", "<leader>M", function()
+end
 
-        local buf = vim.api.nvim_create_buf(false, true)
-        -- vim.api.nvim_buf_set_name(buf, 'lookie')
-        vim.api.nvim_set_option_value('filetype', 'lookie', { buf = buf })
-        local data = {}
-        local lines = {}
-        local current_file_name = vim.api.nvim_buf_get_name(buf)
+function M.add()
 
-        for _, v in ipairs(_LookieData) do
-            if not data[v.file_name] then
-                data[v.file_name] = {}
-            end
-            table.insert(data[v.file_name], v)
-        end
+    local extmarks = M.get_extmark()
+    local cur_win = vim.api.nvim_get_current_win()
+    local cur_buf = vim.api.nvim_get_current_buf()
 
-        local meta_data = {}
-        local line_count = 1
+    if extmarks then
 
-        for _, vs in pairs(data) do
-            meta_data[line_count] = { file = vs[1]._file_name }
-            table.insert(lines, vs[1]._file_name)
-            line_count = line_count + 1
-            for _, v in ipairs(vs) do
-                meta_data[line_count] = { line = v.line_no, file = v._file_name }
-                table.insert(lines, v.line_no .. ": " .. v.text)
-                line_count = line_count + 1
-            end
-            meta_data[line_count] = {}
-            table.insert(lines, "")
-            line_count = line_count + 1
-        end
+        M.remove_extmarks(extmarks)
 
-        local width = 100
-        local height = 20
+    else
 
-        vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
-        line_count = 0
-        for _, vs in pairs(data) do
-            line_count = line_count + 1
-            for _, v in ipairs(vs) do
-                local line_no_text = v.line_no .. ": "
-                vim.api.nvim_buf_add_highlight(
-                    buf,
-                    -1,
-                    _LookieConfig.types[v.type].hl,
-                    line_count,
-                    line_no_text:len(),
-                    v.text:len() + line_no_text:len()
-                )
-                line_count = line_count + 1
-            end
-            line_count = line_count + 1
-        end
+        vim.ui.input({
+            prompt = "Add a bookmark",
+            cancelreturn = nil,
+        }, function(input)
+            if input then
 
-        local opts = {
-            relative = 'win',
-            width = width,
-            height = height,
-            col = vim.api.nvim_win_get_width(0) / 2 - (width / 2),
-            row = vim.api.nvim_win_get_height(0) / 2 - (height / 2),
-            anchor = 'NW',
-            style = 'minimal',
-            border = 'single',
-        }
-        local win = vim.api.nvim_open_win(buf, true, opts)
+                local file_name = vim.api.nvim_buf_get_name(cur_buf)
+                local extmark_data = {
+                    text = input,
+                    line_no = vim.api.nvim_win_get_cursor(cur_win)[1],
+                    type = "info",
+                    pos = "eol",
+                    file_name = file_name:gsub("/", "_"),
+                    _file_name = file_name,
+                }
 
-        vim.keymap.set("n", "q", function() vim.cmd(":q") end, { buffer = buf, noremap = true })
-        ---FIX: Should jump to correct file if not already open.
-        ---NOTE: Works fine for same file.
-        vim.keymap.set("n", "<CR>", function()
-            local line_no = vim.api.nvim_win_get_cursor(win)[1]
-            local line_data = meta_data[line_no]
-            if line_data then
-                vim.cmd(":q")
-                if line_data.file and line_data.file ~= current_file_name then
-                    vim.api.nvim_command('edit ' .. vim.fn.fnameescape(line_data.file))
+                if input:sub(1, 1) == ">" then
+                    extmark_data.text = input:sub(2)
+                    extmark_data.pos = "right"
                 end
 
-                if line_data.line then
-                    vim.api.nvim_win_set_cursor(0, { line_data.line, 0 })
+                if input:sub(1, 1) == "<" then
+                    extmark_data.text = input:sub(2)
+                    extmark_data.pos = "overlay"
                 end
+
+                if extmark_data.text:find(":") then
+                    local parts = vim.fn.split(extmark_data.text, ":")
+                    extmark_data.text = parts[2]
+                    extmark_data.type = parts[1]
+                end
+
+                M.create_extmark(extmark_data)
+                local File = require('lookie.file')
+                File.write(_LookieData, file_name:gsub("/", "_"))
             end
-        end, { buffer = buf, noremap = true })
+        end)
 
-    end, { noremap = true })
-
-    vim.keymap.set("n", "<leader>m", function()
-
-        local extmarks = M.get_extmark()
-        local cur_win = vim.api.nvim_get_current_win()
-        local cur_buf = vim.api.nvim_get_current_buf()
-
-        if extmarks then
-
-            M.remove_extmarks(extmarks)
-
-        else
-
-            vim.ui.input({
-                prompt = "Add a bookmark",
-                cancelreturn = nil,
-            }, function(input)
-                if input then
-
-                    local file_name = vim.api.nvim_buf_get_name(cur_buf)
-                    local extmark_data = {
-                        text = input,
-                        line_no = vim.api.nvim_win_get_cursor(cur_win)[1],
-                        type = "info",
-                        pos = "eol",
-                        file_name = file_name:gsub("/", "_"),
-                        _file_name = file_name,
-                    }
-
-                    if input:sub(1, 1) == ">" then
-                        extmark_data.text = input:sub(2)
-                        extmark_data.pos = "right"
-                    end
-
-                    if input:sub(1, 1) == "<" then
-                        extmark_data.text = input:sub(2)
-                        extmark_data.pos = "overlay"
-                    end
-
-                    if extmark_data.text:find(":") then
-                        local parts = vim.fn.split(extmark_data.text, ":")
-                        extmark_data.text = parts[2]
-                        extmark_data.type = parts[1]
-                    end
-
-                    M.create_extmark(extmark_data)
-                    local File = require('lookie.file')
-                    File.write(_LookieData, file_name:gsub("/", "_"))
-                end
-            end)
-
-        end
-
-    end, { noremap = true })
+    end
 
 end
 
@@ -305,6 +218,93 @@ function M.create_extmark(extmark_data)
     vim.api.nvim_buf_set_extmark(cur_buf, ns_id, line_no, col_num, opts)
 
     table.insert(_LookieData, extmark_data)
+end
+
+function M.open()
+
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_set_option_value('filetype', 'lookie', { buf = buf })
+    local data = {}
+    local lines = {}
+    local current_file_name = vim.api.nvim_buf_get_name(buf)
+
+    for _, v in ipairs(_LookieData) do
+        if not data[v.file_name] then
+            data[v.file_name] = {}
+        end
+        table.insert(data[v.file_name], v)
+    end
+
+    local meta_data = {}
+    local line_count = 1
+
+    for _, vs in pairs(data) do
+        meta_data[line_count] = { file = vs[1]._file_name }
+        table.insert(lines, vs[1]._file_name)
+        line_count = line_count + 1
+        for _, v in ipairs(vs) do
+            meta_data[line_count] = { line = v.line_no, file = v._file_name }
+            table.insert(lines, v.line_no .. ": " .. v.text)
+            line_count = line_count + 1
+        end
+        meta_data[line_count] = {}
+        table.insert(lines, "")
+        line_count = line_count + 1
+    end
+
+    local width = 100
+    local height = 20
+
+    vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+    line_count = 0
+    for _, vs in pairs(data) do
+        line_count = line_count + 1
+        for _, v in ipairs(vs) do
+            local line_no_text = v.line_no .. ": "
+            vim.api.nvim_buf_add_highlight(
+            buf,
+            -1,
+            _LookieConfig.types[v.type].hl,
+            line_count,
+            line_no_text:len(),
+            v.text:len() + line_no_text:len()
+            )
+            line_count = line_count + 1
+        end
+        line_count = line_count + 1
+    end
+
+    local gwidth = vim.api.nvim_list_uis()[1].width
+    local gheight = vim.api.nvim_list_uis()[1].height
+    local opts = {
+        title = "Lookie",
+        title_pos = "center",
+        relative = 'editor',
+        width = width,
+        height = height,
+        col = (gwidth / 2) - (width / 2),
+        row = (gheight / 2) - (height / 2),
+        anchor = 'NW',
+        style = 'minimal',
+        border = 'single',
+    }
+    local win = vim.api.nvim_open_win(buf, true, opts)
+
+    vim.keymap.set("n", "q", function() vim.cmd(":q") end, { buffer = buf, noremap = true })
+    vim.keymap.set("n", "<CR>", function()
+        local line_no = vim.api.nvim_win_get_cursor(win)[1]
+        local line_data = meta_data[line_no]
+        if line_data then
+            vim.cmd(":q")
+            if line_data.file and line_data.file ~= current_file_name then
+                vim.api.nvim_command('edit ' .. vim.fn.fnameescape(line_data.file))
+            end
+
+            if line_data.line then
+                vim.api.nvim_win_set_cursor(0, { line_data.line, 0 })
+            end
+        end
+    end, { buffer = buf, noremap = true })
 end
 
 return M
