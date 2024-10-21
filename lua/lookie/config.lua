@@ -1,6 +1,7 @@
 return {
-    ---@type string|"cwd"|function(): string Data location. If set to "cwd" it will save data to current working directory ([cwd]/lookie/)
+    ---@type string|"cwd"|function(): string Data location. If set to "cwd" it will save data to current working directory ([cwd]/.lookie/[file_name])
     data_path = vim.fn.stdpath("cache") .. "/duckdm/lookie/",
+
     ---@type table Marker typess
     types = {
         info = {
