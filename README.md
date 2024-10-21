@@ -2,6 +2,16 @@
 
 Bookmark plugin for neovim.
 
+## Available methods
+
+```lua
+--- Add/remove marker
+require("lookie").add()
+
+--- Open lookie
+require("lookie").open()
+```
+
 ## Example setup with lazy
 
 ```lua
@@ -10,7 +20,7 @@ Bookmark plugin for neovim.
   --- See default config
   opts= {},
   keys = {
-    { "<leader>m", function() require("lookie").add() end, { desc = "Add lookie marker" } },
+    { "<leader>m", function() require("lookie").add() end, { desc = "Add/remove lookie marker" } },
     { "<leader>M", function() require("lookie").open() end, { desc = "Open lookie" } },
   }
 }
